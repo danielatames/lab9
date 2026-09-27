@@ -16,6 +16,9 @@ public class Envio extends AuditableEntity {
     @Column(name = "codigo_rastreo", nullable = false, unique = true, length = 30)
     private String codigoRastreo;
 
+    @Column(length = 100)
+    private String destinatario;
+
     @Column(name = "direccion_destino", nullable = false, length = 200)
     private String direccionDestino;
 
@@ -36,27 +39,75 @@ public class Envio extends AuditableEntity {
     @JoinColumn(name = "conductor_id", nullable = false)
     private Conductor conductor;
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    public Integer getId() {
+        return id;
+    }
 
-    public String getCodigoRastreo() { return codigoRastreo; }
-    public void setCodigoRastreo(String codigoRastreo) { this.codigoRastreo = codigoRastreo; }
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
-    public String getDireccionDestino() { return direccionDestino; }
-    public void setDireccionDestino(String direccionDestino) { this.direccionDestino = direccionDestino; }
+    public String getCodigoRastreo() {
+        return codigoRastreo;
+    }
 
-    public BigDecimal getPesoKg() { return pesoKg; }
-    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
+    public void setCodigoRastreo(String codigoRastreo) {
+        this.codigoRastreo = codigoRastreo;
+    }
 
-    public BigDecimal getCosto() { return costo; }
-    public void setCosto(BigDecimal costo) { this.costo = costo; }
+    public String getDestinatario() {
+        return destinatario;
+    }
 
-    public String getEstadoEnvio() { return estadoEnvio; }
-    public void setEstadoEnvio(String estadoEnvio) { this.estadoEnvio = estadoEnvio; }
+    public void setDestinatario(String destinatario) {
+        this.destinatario = destinatario;
+    }
 
-    public Vehiculo getVehiculo() { return vehiculo; }
-    public void setVehiculo(Vehiculo vehiculo) { this.vehiculo = vehiculo; }
+    public String getDireccionDestino() {
+        return direccionDestino;
+    }
 
-    public Conductor getConductor() { return conductor; }
-    public void setConductor(Conductor conductor) { this.conductor = conductor; }
+    public void setDireccionDestino(String direccionDestino) {
+        this.direccionDestino = direccionDestino;
+    }
+
+    public BigDecimal getPesoKg() {
+        return pesoKg;
+    }
+
+    public void setPesoKg(BigDecimal pesoKg) {
+        this.pesoKg = pesoKg;
+    }
+
+    public BigDecimal getCosto() {
+        return costo;
+    }
+
+    public void setCosto(BigDecimal costo) {
+        this.costo = costo;
+    }
+
+    public String getEstadoEnvio() {
+        return estadoEnvio;
+    }
+
+    public void setEstadoEnvio(String estadoEnvio) {
+        this.estadoEnvio = estadoEnvio;
+    }
+
+    public Vehiculo getVehiculo() {
+        return vehiculo;
+    }
+
+    public void setVehiculo(Vehiculo vehiculo) {
+        this.vehiculo = vehiculo;
+    }
+
+    public Conductor getConductor() {
+        return conductor;
+    }
+
+    public void setConductor(Conductor conductor) {
+        this.conductor = conductor;
+    }
 }
