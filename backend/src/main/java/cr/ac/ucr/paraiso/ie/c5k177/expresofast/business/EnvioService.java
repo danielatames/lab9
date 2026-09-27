@@ -6,6 +6,10 @@ import cr.ac.ucr.paraiso.ie.c5k177.expresofast.dto.*;
 import cr.ac.ucr.paraiso.ie.c5k177.expresofast.exception.CapacidadExcedidaException;
 import cr.ac.ucr.paraiso.ie.c5k177.expresofast.exception.InvalidStateTransitionException;
 import cr.ac.ucr.paraiso.ie.c5k177.expresofast.exception.ResourceNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,17 +45,28 @@ public class EnvioService {
 
     @Transactional(readOnly = true)
     public List<EnvioResponseDTO> listarOptimizado() {
-        return envioRepository.findAllOptimizado().stream().map(this::mapearAResponseDTO).collect(Collectors.toList());
+        return envioRepository.findAllOptimizado().stream()
+                .map(this::mapearAResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public EnvioResponseDTO obtenerPorId(Integer id) {
+        Envio envio = envioRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Envio no encontrado"));
+        return mapearAResponseDTO(envio);
     }
 
     @Transactional
     public EnvioResponseDTO registrarEnvio(EnvioRequestDTO dto) {
-        Vehiculo vehiculo = vehiculoRepository.findById(dto.getVehiculoId()).orElseThrow(() -> new ResourceNotFoundException("Vehículo no encontrado"));
+        Vehiculo vehiculo = vehiculoRepository.findById(dto.getVehiculoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Vehículo no encontrado"));
 
-        Conductor conductor = conductorRepository.findById(dto.getConductorId()) .orElseThrow(() -> new ResourceNotFoundException("Conductor no encontrado"));
+        Conductor conductor = conductorRepository.findById(dto.getConductorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Conductor no encontrado"));
 
         if (dto.getPesoKg().compareTo(vehiculo.getCapacidadKg()) > 0) {
-            throw new CapacidadExcedidaException("El peso del envío (" + dto.getPesoKg()+ " kg) supera la capacidad del vehículo (" + vehiculo.getCapacidadKg() + " kg)");
+            throw new CapacidadExcedidaException( "El peso del envío (" + dto.getPesoKg() + " kg) supera la capacidad del vehículo ("   + vehiculo.getCapacidadKg() + " kg)");
         }
 
         Envio envio = new Envio();
@@ -81,7 +96,8 @@ public class EnvioService {
         }
 
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Usuario usuario = usuarioRepository.findByUsername(username).orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
         envio.setEstadoEnvio(estadoNuevo);
 
@@ -94,6 +110,25 @@ public class EnvioService {
         bitacora.setObservaciones(dto.getObservaciones());
         bitacoraEnvioRepository.save(bitacora);
 
+        return mapearAResponseDTO(envio);
+    }
+
+    @Transactional
+    public EnvioResponseDTO cancelarEnvio(Integer envioId) {
+        Envio envio = envioRepository.findById(envioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Envío no encontrado"));
+
+        if ("EN_TRANSITO".equals(envio.getEstadoEnvio())) {
+            throw new InvalidStateTransitionException(
+                    "No se puede cancelar el envío " + envio.getCodigoRastreo()
+                            + " porque ya se encuentra en tránsito");
+        }
+        if (ESTADOS_FINALES.contains(envio.getEstadoEnvio())) {
+            throw new InvalidStateTransitionException(
+                    "El envío " + envio.getCodigoRastreo() + " ya se encuentra en un estado final");
+        }
+
+        envio.setEstadoEnvio("CANCELADO");
         return mapearAResponseDTO(envio);
     }
 
@@ -128,27 +163,49 @@ public class EnvioService {
                 envio.getFechaModificacion());
     }
 
-    @Transactional
-    public EnvioResponseDTO cancelarEnvio(Integer envioId) {
-        Envio envio = envioRepository.findById(envioId)
-                .orElseThrow(() -> new ResourceNotFoundException("Envío no encontrado"));
+    @Transactional(readOnly = true)
+    public Page<EnvioDTO> listarPaginado(int page, int size, String sortBy, String direction,
+            String busqueda, String estado) {
+        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
 
-        if ("EN_TRANSITO".equals(envio.getEstadoEnvio())) {
-            throw new InvalidStateTransitionException("No se puede cancelar el envío " + envio.getCodigoRastreo()
-                    + " porque ya se encuentra en tránsito");
+        Page<Envio> enviosPage;
+
+        boolean tieneBusqueda = (busqueda != null && !busqueda.trim().isEmpty());
+        boolean tieneEstado = (estado != null && !estado.trim().isEmpty());
+
+        if (tieneBusqueda && tieneEstado) {
+            enviosPage = envioRepository
+                    .findByCodigoRastreoContainingIgnoreCaseOrDestinatarioContainingIgnoreCaseAndEstadoEnvio(
+                            busqueda, busqueda, estado, pageable);
+        } else if (tieneBusqueda) {
+            enviosPage = envioRepository
+                    .findByCodigoRastreoContainingIgnoreCaseOrDestinatarioContainingIgnoreCase(
+                            busqueda, busqueda, pageable);
+        } else if (tieneEstado) {
+            enviosPage = envioRepository.findByEstadoEnvio(estado, pageable);
+        } else {
+            enviosPage = envioRepository.findAll(pageable);
         }
 
-        if (ESTADOS_FINALES.contains(envio.getEstadoEnvio())) {
-            throw new InvalidStateTransitionException("El envío " + envio.getCodigoRastreo() + " ya se encuentra en un estado final");
-        }
-
-        envio.setEstadoEnvio("CANCELADO");
-        return mapearAResponseDTO(envio);
+        return enviosPage.map(this::mapearAEnvioDTO);
     }
 
     @Transactional(readOnly = true)
-    public EnvioResponseDTO obtenerPorId(Integer id) {
-        Envio envio = envioRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Envio no encontrado"));
-        return mapearAResponseDTO(envio);
+    public List<EnvioDTO> listarViaStoredProcedure(String estado) {
+        return envioRepository.obtenerEnviosPorEstado(estado).stream()
+                .map(this::mapearAEnvioDTO)
+                .collect(Collectors.toList());
+    }
+
+    private EnvioDTO mapearAEnvioDTO(Envio envio) {
+        return new EnvioDTO(
+                envio.getId(),
+                envio.getCodigoRastreo(),
+                envio.getDestinatario(),
+                envio.getDireccionDestino(),
+                envio.getCosto(),
+                envio.getEstadoEnvio(),
+                envio.getFechaCreacion());
     }
 }
