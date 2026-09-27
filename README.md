@@ -1,4 +1,4 @@
-# Laboratorio 8 — ExpresoFast Parte IV: Consola de Operación Logística
+# Laboratorio 9 — ExpresoFast Parte IV: Consola de Operación Logística
 
 **Curso:** IF0009 - Desarrollo de Software IV
 **Ciclo:** II-2026
